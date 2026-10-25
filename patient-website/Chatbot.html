@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Patient Chatbot</title>
+  <style>
+    :root {
+      --bg: #f3f7fb;
+      --panel: #ffffff;
+      --primary: #1d9ad8;
+      --primary-dark: #05a1de;
+      --user: #05a1de;
+      --bot: #e2e8f0;
+      --text: #0f172a;
+      --border: #dbe3ee;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, #eef5ff, var(--bg));
+      font-family: Arial, Helvetica, sans-serif;
+      color: var(--text);
+    }
+
+    .chat-shell {
+      width: min(900px, 94vw);
+      height: min(850px, 94vh);
+      background: var(--panel);
+      border-radius: 18px;
+      box-shadow: 0 14px 40px rgba(7, 25, 67, 0.12);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      border: 1px solid var(--border);
+    }
+
+    .chat-header {
+      background: #05a1de;
+      color: #fff;
+      font-size: 1.1rem;
+      font-weight: 700;
+      padding: 18px 22px;
+    }
+
+    .demo-notice {
+      padding: 10px 16px;
+      background: #fff3db;
+      color: #654312;
+      border-bottom: 1px solid #edd7a8;
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .booking-area { padding: 0 16px 14px; background: #fff; }
+    .booking-toggle { width: 100%; }
+    .booking-form { display: grid; gap: 10px; padding-top: 14px; }
+    .booking-form[hidden] { display: none; }
+    .booking-form label { display: grid; gap: 5px; color: #475569; font-size: 12px; }
+    .booking-form input[type="checkbox"] { flex: none; }
+    .check-row { display: flex !important; grid-template-columns: none; align-items: flex-start; gap: 8px !important; line-height: 1.4; }
+    .booking-status { min-height: 18px; color: #475569; font-size: 12px; }
+
+    .chat-messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px;
+      background: #f8fafc;
+    }
+
+    .message {
+      max-width: 75%;
+      margin-bottom: 14px;
+      padding: 12px 14px;
+      border-radius: 14px;
+      line-height: 1.5;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .message.user {
+      margin-left: auto;
+      background: var(--user);
+      color: white;
+      border-bottom-right-radius: 4px;
+    }
+
+    .message.bot {
+      margin-right: auto;
+      background: var(--bot);
+      color: var(--text);
+      border-bottom-left-radius: 4px;
+    }
+
+    .chat-input {
+      display: flex;
+      gap: 10px;
+      padding: 16px;
+      border-top: 1px solid var(--border);
+      background: white;
+    }
+
+    input {
+      flex: 1;
+      min-width: 0;
+      font-size: 1rem;
+      padding: 13px 14px;
+      border: 1px solid #cbd5e1;
+      border-radius: 12px;
+      outline: none;
+    }
+
+    input:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+    }
+
+    button {
+      border: none;
+      border-radius: 12px;
+      background: var(--primary);
+      color: white;
+      padding: 12px 18px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    button:hover { background: var(--primary-dark); }
+    button:disabled { opacity: 0.65; cursor: wait; }
+
+    @media (max-width: 520px) {
+      .chat-shell { width: 100vw; height: 100vh; border-radius: 0; }
+      .message { max-width: 88%; }
+    }
+  </style>
+</head>
+<body>
+  <main class="chat-shell">
+    <header class="chat-header">Hippocrates 👨🏽‍⚕️🩺</header>
+    <aside class="demo-notice">Fictional-data demo only. Do not enter real personal or health information. Chat messages are not saved unless you explicitly choose to share a summary when requesting an appointment.</aside>
+    <div id="chatMessages" class="chat-messages" aria-live="polite"></div>
+    <form id="chatForm" class="chat-input">
+      <input id="messageInput" type="text" placeholder="Ask a general health or appointment question..." autocomplete="off" required />
+      <button id="sendBtn" type="submit" disabled>Send</button>
+    </form>
+    <label style="padding: 0 16px 12px; background: white; font-size: 12px; color: #475569;">
+      <input id="demoConsent" type="checkbox" /> I confirm I will use fictional test information only.
+    </label>
+    <section class="booking-area">
+      <button id="bookingToggle" class="booking-toggle" type="button" aria-expanded="false">Request an appointment</button>
+      <form id="bookingForm" class="booking-form" hidden>
+        <label>Name<input name="name" maxlength="100" placeholder="Ex: John Doe" required /></label>
+        <label>Contact number<input name="contactNumber" type="tel" maxlength="40" autocomplete="tel" placeholder="Ex: 123-456-7890" required /></label>
+        <label>Email address<input name="email" type="email" maxlength="200" autocomplete="email" placeholder="Ex: john.doe@example.com" required /></label>
+        <label>Preferred appointment date and time<input id="requestedTime" name="requestedTime" type="datetime-local" step="900" required /></label>
+        <label class="check-row"><input id="shareSummary" type="checkbox" /> Also share my recent chat messages and replies with the doctor</label>
+        <label class="check-row"><input id="shareConsent" type="checkbox" required /> I agree to send the details above to a third party. I understand this is fictional test data and the third party is public.</label>
+        <button id="bookingSubmit" type="submit">Submit demo request</button>
+        <div id="bookingStatus" class="booking-status" aria-live="polite"></div>
+      </form>
+    </section>
+  </main>
+
+  <script>
+    const chatMessages = document.getElementById('chatMessages');
+    const messageInput = document.getElementById('messageInput');
+    const chatForm = document.getElementById('chatForm');
+    const sendBtn = document.getElementById('sendBtn');
+    const demoConsent = document.getElementById('demoConsent');
+    const bookingToggle = document.getElementById('bookingToggle');
+    const bookingForm = document.getElementById('bookingForm');
+    const bookingStatus = document.getElementById('bookingStatus');
+    const shareSummary = document.getElementById('shareSummary');
+    const shareConsent = document.getElementById('shareConsent');
+    const requestedTimeInput = document.getElementById('requestedTime');
+    const conversation = [];
+
+    function setEarliestAppointmentTime() {
+      const now = new Date();
+      now.setMinutes(Math.ceil(now.getMinutes() / 15) * 15, 0, 0);
+      const localDateTime = new Date(now.getTime() - now.getTimezoneOffset() * 60000)
+        .toISOString()
+        .slice(0, 16);
+      requestedTimeInput.min = localDateTime;
+    }
+
+    function addMessage(text, sender) {
+      const message = document.createElement('div');
+      message.className = `message ${sender}`;
+      message.textContent = text;
+      chatMessages.appendChild(message);
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+      return message;
+    }
+
+    async function sendMessage(event) {
+      event.preventDefault();
+      const text = messageInput.value.trim();
+      if (!text || !demoConsent.checked || sendBtn.dataset.sending === 'true') return;
+
+      addMessage(text, 'user');
+      conversation.push({ role: 'user', content: text });
+      messageInput.value = '';
+      sendBtn.dataset.sending = 'true';
+      sendBtn.disabled = true;
+      const thinking = addMessage('Thinking...', 'bot');
+
+      try {
+        const response = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: text, demoOnly: demoConsent.checked })
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || `Request failed (${response.status})`);
+        thinking.textContent = data.reply || 'Sorry, I do not have a response.';
+        conversation.push({ role: 'assistant', content: thinking.textContent });
+      } catch (error) {
+        thinking.textContent = error.message || 'Could not contact the chatbot. Please try again.';
+        console.error(error);
+      } finally {
+        sendBtn.dataset.sending = 'false';
+        sendBtn.disabled = !demoConsent.checked;
+        messageInput.focus();
+      }
+    }
+
+    demoConsent.addEventListener('change', () => {
+      sendBtn.disabled = !demoConsent.checked || sendBtn.dataset.sending === 'true';
+    });
+    bookingToggle.addEventListener('click', () => {
+      bookingForm.hidden = !bookingForm.hidden;
+      bookingToggle.setAttribute('aria-expanded', String(!bookingForm.hidden));
+      if (!bookingForm.hidden) setEarliestAppointmentTime();
+    });
+    bookingForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      if (!demoConsent.checked) {
+        bookingStatus.textContent = 'First confirm the chat content is fictional test data.';
+        return;
+      }
+      const formData = new FormData(bookingForm);
+      const payload = {
+        name: formData.get('name'),
+        contactNumber: formData.get('contactNumber'),
+        email: formData.get('email'),
+        requestedTime: formData.get('requestedTime'),
+        demoOnly: demoConsent.checked,
+        shareConsent: shareConsent.checked,
+        shareSummary: shareSummary.checked,
+        summary: shareSummary.checked ? conversation.map((item) => `${item.role}: ${item.content}`).join('\n') : ''
+      };
+      const submitButton = document.getElementById('bookingSubmit');
+      submitButton.disabled = true;
+      bookingStatus.textContent = 'Submitting...';
+      try {
+        const response = await fetch('/api/appointments', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || `Request failed (${response.status})`);
+        bookingStatus.textContent = 'Demo request submitted. It should now appear in the doctor portal.';
+        bookingForm.reset();
+      } catch (error) {
+        bookingStatus.textContent = error.message;
+      } finally {
+        submitButton.disabled = false;
+      }
+    });
+    chatForm.addEventListener('submit', sendMessage);
+    addMessage('Hello, my name is Hippocrates! I can assist with general health questions and appointment information. I cannot diagnose conditions or replace advice from a healthcare professional.', 'bot');
+  </script>
+</body>
+</html>

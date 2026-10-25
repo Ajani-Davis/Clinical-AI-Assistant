@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Clinician Queue | Hippocrates</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #17252b;
+      --muted: #66777d;
+      --line: #dce5e5;
+      --surface: #ffffff;
+      --canvas: #f2f6f4;
+      --teal: #087f78;
+      --teal-dark: #06645f;
+      --mint: #e5f4ef;
+      --amber: #a46111;
+      --amber-bg: #fff3db;
+      --red: #a33d39;
+      --red-bg: #fde9e6;
+      --blue: #315f8d;
+      --blue-bg: #e8f1f9;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--canvas);
+      color: var(--ink);
+      font-family: "Avenir Next", Avenir, "Segoe UI", sans-serif;
+    }
+
+    button, input, select { font: inherit; }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      min-height: 66px;
+      padding: 0 32px;
+      background: #fff;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .brand { display: flex; align-items: center; gap: 11px; font-weight: 700; }
+    .brand-mark {
+      display: grid;
+      place-items: center;
+      width: 34px;
+      height: 34px;
+      border-radius: 10px;
+      background: var(--teal);
+      color: white;
+      font-size: 20px;
+    }
+
+    .topbar-label { color: var(--muted); font-size: 13px; }
+    main { width: min(1160px, calc(100% - 48px)); margin: 34px auto 64px; }
+
+    .demo-warning {
+      display: flex;
+      align-items: flex-start;
+      gap: 11px;
+      margin-bottom: 26px;
+      padding: 13px 16px;
+      border: 1px solid #edd7a8;
+      border-radius: 8px;
+      background: var(--amber-bg);
+      color: #654312;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .demo-warning strong { display: block; margin-bottom: 2px; }
+    .page-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 22px; }
+    h1 { margin: 0; font-size: 27px; font-weight: 650; letter-spacing: 0; }
+    .subtitle { margin: 6px 0 0; color: var(--muted); font-size: 14px; }
+    .date-label { color: var(--muted); font-size: 13px; white-space: nowrap; }
+
+    .summary { display: grid; grid-template-columns: repeat(3, 1fr); border-block: 1px solid var(--line); background: var(--surface); margin-bottom: 26px; }
+    .metric { padding: 17px 20px; border-right: 1px solid var(--line); }
+    .metric:last-child { border-right: 0; }
+    .metric-label { color: var(--muted); font-size: 12px; }
+    .metric-value { display: block; margin-top: 5px; font-size: 23px; font-weight: 650; font-variant-numeric: tabular-nums; }
+
+    .section-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 12px; }
+    h2 { margin: 0; font-size: 17px; font-weight: 650; }
+    .controls { display: flex; gap: 8px; }
+    .controls input, .controls select {
+      min-height: 38px;
+      padding: 7px 10px;
+      border: 1px solid #cbd8d8;
+      border-radius: 6px;
+      background: white;
+      color: var(--ink);
+      font-size: 13px;
+    }
+    .controls input { width: 230px; }
+
+    .table-wrap { overflow: auto; border: 1px solid var(--line); background: var(--surface); }
+    table { width: 100%; border-collapse: collapse; text-align: left; }
+    th { padding: 11px 14px; background: #f7faf9; color: var(--muted); font-size: 11px; font-weight: 650; text-transform: uppercase; letter-spacing: .04em; }
+    td { padding: 14px; border-top: 1px solid var(--line); font-size: 13px; vertical-align: middle; }
+    tbody tr { cursor: pointer; }
+    tbody tr:hover, tbody tr[aria-selected="true"] { background: #f0f8f5; }
+    .patient-name { display: block; font-weight: 650; }
+    .patient-id { display: block; margin-top: 3px; color: var(--muted); font-size: 11px; }
+    .concern { max-width: 300px; color: #38494e; }
+    .status {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 650;
+      white-space: nowrap;
+    }
+    .status.new { background: var(--blue-bg); color: var(--blue); }
+    .status.review { background: var(--amber-bg); color: var(--amber); }
+    .status.confirmed { background: var(--mint); color: var(--teal-dark); }
+    .status.urgent { background: var(--red-bg); color: var(--red); }
+    .empty { display: none; padding: 30px; text-align: center; color: var(--muted); }
+
+    .detail-panel {
+      display: grid;
+      grid-template-columns: 1.2fr 1fr 1fr;
+      gap: 0;
+      margin-top: 16px;
+      border: 1px solid var(--line);
+      background: white;
+    }
+    .detail-cell { padding: 16px 18px; border-right: 1px solid var(--line); }
+    .detail-cell:last-child { border-right: 0; }
+    .detail-label { display: block; margin-bottom: 7px; color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .04em; }
+    .detail-value { font-size: 13px; line-height: 1.5; }
+    .footer-note { margin: 14px 0 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
+
+    @media (max-width: 760px) {
+      .topbar { padding-inline: 18px; }
+      main { width: calc(100% - 32px); margin-top: 22px; }
+      .page-heading { align-items: flex-start; flex-direction: column; }
+      .summary { grid-template-columns: 1fr; }
+      .metric { display: flex; justify-content: space-between; align-items: center; border-right: 0; border-bottom: 1px solid var(--line); padding: 12px 16px; }
+      .metric:last-child { border-bottom: 0; }
+      .metric-value { margin: 0; font-size: 19px; }
+      .section-header { align-items: stretch; flex-direction: column; }
+      .controls input { flex: 1; width: auto; min-width: 0; }
+      .controls select { width: 130px; }
+      .detail-panel { grid-template-columns: 1fr; }
+      .detail-cell { border-right: 0; border-bottom: 1px solid var(--line); }
+      .detail-cell:last-child { border-bottom: 0; }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><span class="brand-mark" aria-hidden="true">+</span><span>Hippocrates <span class="topbar-label">/ Clinician view</span></span></div>
+    <span class="topbar-label">Prototype dashboard</span>
+  </header>
+
+  <main>
+    <aside class="demo-warning" role="note">
+      <span aria-hidden="true">!</span>
+      <span><strong>Demo only: all records below are fictional.</strong>This prototype does not receive, save, or protect real patient information. Do not enter real names, diagnoses, symptoms, or appointment details.</span>
+    </aside>
+
+    <section class="page-heading" aria-label="Dashboard heading">
+      <div>
+        <h1>Patient requests</h1>
+        <p class="subtitle">Review patient-reported concerns and appointment requests.</p>
+      </div>
+      <span id="queueLabel" class="date-label">Loading appointment requests...</span>
+    </section>
+
+    <section class="summary" aria-label="Queue summary">
+      <div class="metric"><span class="metric-label">Appointment requests</span><strong id="queueCount" class="metric-value">0</strong></div>
+      <div class="metric"><span class="metric-label">New requests</span><strong id="reviewCount" class="metric-value">0</strong></div>
+      <div class="metric"><span class="metric-label">Data storage</span><strong class="metric-value">Temporary</strong></div>
+    </section>
+
+    <section aria-labelledby="requests-title">
+      <div class="section-header">
+        <h2 id="requests-title">Recent requests</h2>
+        <div class="controls">
+          <input id="search" type="search" placeholder="Search requests" aria-label="Search appointment requests" />
+          <select id="statusFilter" aria-label="Filter by status">
+            <option value="all">All statuses</option>
+            <option value="new">New</option>
+          </select>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Demo patient</th><th>Preferred time</th><th>Contact number</th><th>Email</th><th>Status</th></tr>
+          </thead>
+          <tbody id="requestRows"></tbody>
+        </table>
+        <div id="emptyState" class="empty">No requests yet. Submit a fictional appointment request from the patient website.</div>
+      </div>
+    </section>
+
+    <section id="detailPanel" class="detail-panel" aria-label="Selected request details">
+      <div class="detail-cell"><span class="detail-label">Appointment request</span><div id="detailPatient" class="detail-value">Select a request to review its details.</div></div>
+      <div class="detail-cell"><span class="detail-label">Patient-shared chat summary</span><div id="detailResponse" class="detail-value">No chat summary was shared.</div></div>
+      <div class="detail-cell"><span class="detail-label">Clinical note</span><div class="detail-value">Chat text is patient-provided context, not a diagnosis. Diagnosis and clinical decisions belong to a qualified clinician.</div></div>
+    </section>
+
+    <p class="footer-note">No-login fictional-data prototype. Anyone who can reach this page can view its temporary records. Requests are held in server memory, capped at 100, and erased when the server restarts or redeploys. Do not use real patient information.</p>
+  </main>
+
+  <script>
+    let requests = [];
+    const rows = document.getElementById('requestRows');
+    const search = document.getElementById('search');
+    const statusFilter = document.getElementById('statusFilter');
+    const emptyState = document.getElementById('emptyState');
+    const detailPatient = document.getElementById('detailPatient');
+    const detailResponse = document.getElementById('detailResponse');
+    const queueCount = document.getElementById('queueCount');
+    const reviewCount = document.getElementById('reviewCount');
+    const queueLabel = document.getElementById('queueLabel');
+
+    function formatAppointmentTime(value) {
+      const appointmentDate = new Date(value);
+      return Number.isNaN(appointmentDate.getTime())
+        ? value
+        : appointmentDate.toLocaleString(undefined, {
+            dateStyle: 'medium',
+            timeStyle: 'short'
+          });
+    }
+
+    function renderRows() {
+      const term = search.value.trim().toLowerCase();
+      const status = statusFilter.value;
+      const visible = requests.filter((record) => {
+        const matchesTerm = `${record.id} ${record.name} ${record.contactNumber} ${record.email} ${record.requestedTime} ${record.summary}`.toLowerCase().includes(term);
+        return matchesTerm && (status === 'all' || record.status.toLowerCase() === status);
+      });
+
+      queueCount.textContent = String(requests.length);
+      reviewCount.textContent = String(requests.length);
+      queueLabel.textContent = `Demo appointment queue · ${requests.length} ${requests.length === 1 ? 'request' : 'requests'}`;
+      rows.replaceChildren();
+      for (const record of visible) {
+        const row = document.createElement('tr');
+        row.tabIndex = 0;
+        row.setAttribute('aria-selected', 'false');
+        row.innerHTML = `<td class="patient"></td><td class="time"></td><td class="phone"></td><td class="email"></td><td><span class="status new">New</span></td>`;
+        row.querySelector('.patient').textContent = record.name;
+        row.querySelector('.time').textContent = formatAppointmentTime(record.requestedTime);
+        row.querySelector('.phone').textContent = record.contactNumber;
+        row.querySelector('.email').textContent = record.email;
+
+        const selectRow = () => {
+          rows.querySelectorAll('tr').forEach((item) => item.setAttribute('aria-selected', 'false'));
+          row.setAttribute('aria-selected', 'true');
+          detailPatient.textContent = `${record.name} · ${record.contactNumber} · ${record.email} · Preferred time: ${formatAppointmentTime(record.requestedTime)} · Submitted ${new Date(record.createdAt).toLocaleString()} · Demo request ${record.id}`;
+          detailResponse.textContent = record.summary || 'The patient did not opt to share chat context.';
+        };
+        row.addEventListener('click', selectRow);
+        row.addEventListener('keydown', (event) => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            selectRow();
+          }
+        });
+        rows.appendChild(row);
+      }
+
+      emptyState.textContent = requests.length ? 'No requests match those filters.' : 'No requests yet. Submit a fictional appointment request from the patient website.';
+      emptyState.style.display = visible.length ? 'none' : 'block';
+    }
+
+    async function refreshRecords() {
+      try {
+        const response = await fetch('/api/appointments', { cache: 'no-store' });
+        if (!response.ok) throw new Error(`Request failed (${response.status})`);
+        const data = await response.json();
+        requests = data.requests;
+        renderRows();
+      } catch (error) {
+        queueLabel.textContent = 'Could not load demo queue';
+        emptyState.textContent = 'Could not load appointment requests. Refresh the page or check the server.';
+        emptyState.style.display = 'block';
+        console.error(error);
+      }
+    }
+
+    search.addEventListener('input', renderRows);
+    statusFilter.addEventListener('change', renderRows);
+    refreshRecords();
+    window.setInterval(refreshRecords, 5000);
+  </script>
+</body>
+</html>
