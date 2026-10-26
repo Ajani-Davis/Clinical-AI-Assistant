@@ -194,7 +194,7 @@
       <div class="table-wrap">
         <table>
           <thead>
-            <tr><th>Patient Name</th><th>Preferred time</th><th>Contact Number</th><th>Email</th><th>Status</th></tr>
+            <tr><th>Name</th><th>Time</th><th>Contact Number</th><th>Email</th><th>Status</th></tr>
           </thead>
           <tbody id="requestRows"></tbody>
         </table>
@@ -208,7 +208,7 @@
       <div class="detail-cell"><span class="detail-label">Clinical note</span><div class="detail-value">Chat text is patient-provided context, not a diagnosis. Diagnosis and clinical decisions belong to a qualified clinician.</div></div>
     </section>
 
-    <p class="footer-note">No-login fictional-data prototype. Anyone who can reach this page can view its temporary records. Requests are held in server memory, capped at 100, and erased when the server restarts or redeploys. Do not use real patient information.</p>
+    <p class="footer-note">This is a non-login fictional-data prototype. Anyone who can reach this page can view its temporary records. Requests are held in server memory, capped at 100, and erased when the server restarts or redeploys. Do not use real patient information.</p>
   </main>
 
   <script>
@@ -243,7 +243,7 @@
 
       queueCount.textContent = String(requests.length);
       reviewCount.textContent = String(requests.length);
-      queueLabel.textContent = `Demo appointment queue · ${requests.length} ${requests.length === 1 ? 'request' : 'requests'}`;
+      queueLabel.textContent = `Appointment queue · ${requests.length} ${requests.length === 1 ? 'request' : 'requests'}`;
       rows.replaceChildren();
       for (const record of visible) {
         const row = document.createElement('tr');
@@ -271,7 +271,7 @@
         rows.appendChild(row);
       }
 
-      emptyState.textContent = requests.length ? 'No requests match those filters.' : 'No requests yet. Submit a fictional appointment request from the patient website.';
+      emptyState.textContent = requests.length ? 'No requests match those filters.' : 'No requests yet.';
       emptyState.style.display = visible.length ? 'none' : 'block';
     }
 
