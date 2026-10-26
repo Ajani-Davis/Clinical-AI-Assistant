@@ -105,7 +105,17 @@ def send_appointment_confirmation(record):
                 return False
         return True
     except HTTPError as error:
-        app.logger.error("Resend returned HTTP %s for appointment confirmation", error.code)
+        response_body = error.read().decode("utf-8", errors="replace")
+        app.logger.error(
+            "Resend returned HTTP %s for appointment confirmation: %s",
+            error.code,
+            response_body[:1000],
+        )
+        if error.code == 403 and "onboarding@resend.dev" in sender:
+            app.logger.warning(
+                "Resend's onboarding sender is restricted to the Resend account owner's email; "
+                "verify a domain and use a sender on that domain for other recipients."
+            )
         return False
     except (URLError, TimeoutError, OSError):
         app.logger.exception("Appointment booked, but Resend email delivery failed")
