@@ -94,7 +94,7 @@ def summarize_chat():
                         "Use only details the patient explicitly stated. Clearly distinguish patient-reported "
                         "information from assistant responses. Do not infer facts, make or suggest a diagnosis, "
                         "recommend treatment, or present the summary as clinically verified. Keep the summary "
-                        "well under 1,000 words, preferably under 250 words. Return only the summary."
+                        "well under 500 words, preferably under 250 words. Return only the summary."
                     ),
                 },
                 {"role": "user", "content": transcript.strip()},
@@ -103,7 +103,7 @@ def summarize_chat():
         summary = (result.choices[0].message.content or "").strip()
         if not summary:
             return jsonify({"error": "The AI did not return a summary. Please try again."}), 502
-        if len(summary.split()) >= 1000:
+        if len(summary.split()) >= 500:
             return jsonify({"error": "The generated summary was too long. Please try again."}), 502
         return jsonify({"summary": summary, "wordCount": len(summary.split())})
     except Exception:

@@ -44,11 +44,24 @@
     }
 
     .chat-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
       background: #05a1de;
       color: #fff;
       font-size: 1.1rem;
       font-weight: 700;
       padding: 18px 22px;
+    }
+
+    .chat-avatar {
+      width: 48px;
+      height: 48px;
+      flex: 0 0 48px;
+      border: 2px solid rgba(255, 255, 255, 0.85);
+      border-radius: 50%;
+      object-fit: cover;
+      background: #d8f3f0;
     }
 
     .demo-notice {
@@ -172,7 +185,10 @@
 </head>
 <body>
   <main class="chat-shell">
-    <header class="chat-header">Hippocrates 👨🏽‍⚕️🩺</header>
+    <header class="chat-header">
+      <img class="chat-avatar" src="/static/hippocrates-avatar.svg" alt="Illustrated profile of Hippocrates, the doctor assistant" />
+      <span>Hippocrates</span>
+    </header>
     <aside class="demo-notice">Fictional-data demo only. Do not enter real personal or health information. Chat messages are not saved unless you explicitly choose to share a summary when requesting an appointment.</aside>
     <div id="chatMessages" class="chat-messages" aria-live="polite"></div>
     <form id="chatForm" class="chat-input">
@@ -183,20 +199,20 @@
       <input id="demoConsent" type="checkbox" /> I confirm I will use fictional test information only.
     </label>
     <section class="booking-area">
-      <button id="bookingToggle" class="booking-toggle" type="button" aria-expanded="false">Request an appointment</button>
+      <button id="bookingToggle" class="booking-toggle" type="button" aria-expanded="false">Schedule appointment</button>
       <form id="bookingForm" class="booking-form" hidden>
         <label>Name<input name="name" maxlength="100" placeholder="Ex: John Doe" required /></label>
         <label>Contact number<input name="contactNumber" type="tel" maxlength="40" autocomplete="tel" placeholder="Ex: 123-456-7890" required /></label>
         <label>Email address<input name="email" type="email" maxlength="200" autocomplete="email" placeholder="Ex: john.doe@example.com" required /></label>
         <label>Preferred appointment date and time<input id="requestedTime" name="requestedTime" type="datetime-local" step="900" required /></label>
-        <label class="check-row"><input id="shareSummary" type="checkbox" /> Generate an AI summary of this chat to share with the doctor</label>
+        <label class="check-row"><input id="shareSummary" type="checkbox" /> Generate a summary of this chat to share with the doctor (can be edited before submission)</label>
         <div id="summaryControls" hidden>
           <button id="generateSummary" type="button">Generate summary</button>
           <label for="summaryPreview">AI-generated summary, editable before sharing<textarea id="summaryPreview" rows="6" maxlength="12000" placeholder="Generate a summary to review and edit it here."></textarea></label>
           <div id="summaryStatus" class="booking-status" aria-live="polite">The summary is patient-reported context, not a diagnosis.</div>
         </div>
         <label class="check-row"><input id="shareConsent" type="checkbox" required /> I agree to send the details above to a third party. I understand this is fictional test data and the third party is public.</label>
-        <button id="bookingSubmit" type="submit">Submit demo request</button>
+        <button id="bookingSubmit" type="submit">Submit</button>
         <div id="bookingStatus" class="booking-status" aria-live="polite"></div>
       </form>
     </section>

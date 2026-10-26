@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160" role="img" aria-labelledby="title desc">
+  <title id="title">Hippocrates doctor avatar</title>
+  <desc id="desc">Friendly illustrated doctor with dark curls, teal scrubs, and a white coat.</desc>
+  <defs>
+    <clipPath id="circle"><circle cx="80" cy="80" r="80"/></clipPath>
+    <linearGradient id="backdrop" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#d8f3f0"/>
+      <stop offset="1" stop-color="#a8dfe2"/>
+    </linearGradient>
+  </defs>
+  <g clip-path="url(#circle)">
+    <rect width="160" height="160" fill="url(#backdrop)"/>
+    <circle cx="80" cy="73" r="47" fill="#302b35"/>
+    <path d="M25 164c4-38 24-58 55-58s51 20 55 58" fill="#f9fcfb"/>
+    <path d="M51 111l29 25 29-25-8-9H59z" fill="#087f78"/>
+    <path d="M69 132l11-9 11 9-7 32H76z" fill="#d9efeb"/>
+    <path d="M68 76c0 6 5 11 12 11s12-5 12-11v-7H68z" fill="#d99774"/>
+    <ellipse cx="80" cy="61" rx="31" ry="37" fill="#efb28f"/>
+    <path d="M48 56c-3-27 11-43 33-43 23 0 35 16 32 42-7-4-13-12-16-21-11 12-28 18-49 18z" fill="#302b35"/>
+    <path d="M48 50c-9 10-10 24-7 34 5-3 9-9 10-17zM112 48c9 9 11 23 8 34-5-3-9-9-10-16z" fill="#302b35"/>
+    <path d="M67 61h9M84 61h9" stroke="#49343a" stroke-width="3" stroke-linecap="round"/>
+    <circle cx="72" cy="67" r="2" fill="#25252c"/>
+    <circle cx="88" cy="67" r="2" fill="#25252c"/>
+    <path d="M75 82c4 3 8 3 12 0" fill="none" stroke="#a85f59" stroke-width="2.5" stroke-linecap="round"/>
+    <path d="M43 159c3-22 13-36 29-44l8 12-18 32zM117 159c-3-22-13-36-29-44l-8 12 18 32z" fill="#fff"/>
+    <path d="M105 119h20v30h-20z" fill="#f0f8f7"/>
+    <path d="M115 124v14m-7-7h14" stroke="#d86c63" stroke-width="4" stroke-linecap="round"/>
+    <path d="M30 160h100" stroke="#087f78" stroke-width="4"/>
+  </g>
+</svg>
