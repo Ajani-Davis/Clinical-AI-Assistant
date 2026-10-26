@@ -62,7 +62,18 @@
     .booking-toggle { width: 100%; }
     .booking-form { display: grid; gap: 10px; padding-top: 14px; }
     .booking-form[hidden] { display: none; }
+    #summaryControls[hidden] { display: none; }
     .booking-form label { display: grid; gap: 5px; color: #475569; font-size: 12px; }
+    .booking-form textarea {
+      width: 100%;
+      min-height: 120px;
+      resize: vertical;
+      padding: 10px;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      font: inherit;
+      line-height: 1.45;
+    }
     .booking-form input[type="checkbox"] { flex: none; }
     .check-row { display: flex !important; grid-template-columns: none; align-items: flex-start; gap: 8px !important; line-height: 1.4; }
     .booking-status { min-height: 18px; color: #475569; font-size: 12px; }
@@ -174,7 +185,12 @@
         <label>Contact number<input name="contactNumber" type="tel" maxlength="40" autocomplete="tel" placeholder="Ex: 123-456-7890" required /></label>
         <label>Email address<input name="email" type="email" maxlength="200" autocomplete="email" placeholder="Ex: john.doe@example.com" required /></label>
         <label>Preferred appointment date and time<input id="requestedTime" name="requestedTime" type="datetime-local" step="900" required /></label>
-        <label class="check-row"><input id="shareSummary" type="checkbox" /> Also share a recent chat transcript excerpt with the doctor (up to 1,800 characters)</label>
+        <label class="check-row"><input id="shareSummary" type="checkbox" /> Generate an AI summary of this chat to share with the doctor</label>
+        <div id="summaryControls" hidden>
+          <button id="generateSummary" type="button">Generate summary</button>
+          <label for="summaryPreview">AI-generated summary, editable before sharing<textarea id="summaryPreview" rows="6" maxlength="12000" placeholder="Generate a summary to review and edit it here."></textarea></label>
+          <div id="summaryStatus" class="booking-status" aria-live="polite">The summary is patient-reported context, not a diagnosis.</div>
+        </div>
         <label class="check-row"><input id="shareConsent" type="checkbox" required /> I agree to send the details above to a third party. I understand this is fictional test data and the third party is public.</label>
         <button id="bookingSubmit" type="submit">Submit demo request</button>
         <div id="bookingStatus" class="booking-status" aria-live="polite"></div>
@@ -193,6 +209,10 @@
     const bookingStatus = document.getElementById('bookingStatus');
     const shareSummary = document.getElementById('shareSummary');
     const shareConsent = document.getElementById('shareConsent');
+    const summaryControls = document.getElementById('summaryControls');
+    const generateSummaryButton = document.getElementById('generateSummary');
+    const summaryPreview = document.getElementById('summaryPreview');
+    const summaryStatus = document.getElementById('summaryStatus');
     const requestedTimeInput = document.getElementById('requestedTime');
     const conversation = [];
 
@@ -205,7 +225,7 @@
       requestedTimeInput.min = localDateTime;
     }
 
-    function buildShareableTranscript(maxLength = 1800) {
+    function buildShareableTranscript(maxLength = 12000) {
       const recentLines = [];
       let remaining = maxLength;
 
@@ -271,6 +291,42 @@
     demoConsent.addEventListener('change', () => {
       sendBtn.disabled = !demoConsent.checked || sendBtn.dataset.sending === 'true';
     });
+    shareSummary.addEventListener('change', () => {
+      summaryControls.hidden = !shareSummary.checked;
+      if (!shareSummary.checked) {
+        summaryPreview.value = '';
+        summaryStatus.textContent = 'The summary is patient-reported context, not a diagnosis.';
+      }
+    });
+    generateSummaryButton.addEventListener('click', async () => {
+      if (!demoConsent.checked) {
+        summaryStatus.textContent = 'Confirm this is fictional test data before generating a summary.';
+        return;
+      }
+      const transcript = buildShareableTranscript();
+      if (!transcript) {
+        summaryStatus.textContent = 'Chat with Hippocrates first, then generate a summary.';
+        return;
+      }
+
+      generateSummaryButton.disabled = true;
+      summaryStatus.textContent = 'Generating summary for your review...';
+      try {
+        const response = await fetch('/api/summarize', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ transcript, demoOnly: demoConsent.checked })
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || `Request failed (${response.status})`);
+        summaryPreview.value = data.summary;
+        summaryStatus.textContent = `Review and edit before sharing. ${data.wordCount} words. AI-generated patient context, not a diagnosis.`;
+      } catch (error) {
+        summaryStatus.textContent = error.message || 'Could not generate the summary.';
+      } finally {
+        generateSummaryButton.disabled = false;
+      }
+    });
     bookingToggle.addEventListener('click', () => {
       bookingForm.hidden = !bookingForm.hidden;
       bookingToggle.setAttribute('aria-expanded', String(!bookingForm.hidden));
@@ -282,6 +338,15 @@
         bookingStatus.textContent = 'First confirm the chat content is fictional test data.';
         return;
       }
+      const approvedSummary = shareSummary.checked ? summaryPreview.value.trim() : '';
+      if (shareSummary.checked && !approvedSummary) {
+        bookingStatus.textContent = 'Generate and review the chat summary first, or uncheck summary sharing.';
+        return;
+      }
+      if (approvedSummary.split(/\s+/).filter(Boolean).length >= 1000) {
+        bookingStatus.textContent = 'Please keep the shared summary under 1,000 words.';
+        return;
+      }
       const formData = new FormData(bookingForm);
       const payload = {
         name: formData.get('name'),
@@ -291,7 +356,7 @@
         demoOnly: demoConsent.checked,
         shareConsent: shareConsent.checked,
         shareSummary: shareSummary.checked,
-        summary: shareSummary.checked ? buildShareableTranscript() : ''
+        summary: approvedSummary
       };
       const submitButton = document.getElementById('bookingSubmit');
       submitButton.disabled = true;

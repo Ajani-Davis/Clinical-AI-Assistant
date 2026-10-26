@@ -8,7 +8,7 @@ This project contains two separate website folders and one shared Flask API:
 
 ## Demo behavior
 
-Regular chat messages are sent to Groq for a response but are not saved to the doctor queue. The patient must explicitly submit an appointment request and agree to share the entered details. Sharing chat context is a separate optional checkbox. Only submitted appointment requests enter the doctor's queue.
+Regular chat messages are sent to Groq for a response but are not saved to the doctor queue. The patient must explicitly submit an appointment request and agree to share the entered details. Sharing chat context is a separate optional choice: the patient asks Groq to create a concise summary, reviews and may edit it, then submits that summary with the booking. The raw transcript is not attached to the booking. The summary is patient-reported context, not a diagnosis or a clinically verified record; it is limited to under 1,000 words.
 
 This is a fictional-data demo, not a clinical system. The doctor portal and records API have no login and are publicly accessible. Records use temporary in-memory storage, are capped at 100, and are cleared when the server restarts or redeploys. Never use real patient names, contact details, health details, symptoms, diagnoses, or appointment information.
 
