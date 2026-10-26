@@ -160,7 +160,7 @@
         <label>Contact number<input name="contactNumber" type="tel" maxlength="40" autocomplete="tel" placeholder="Ex: 123-456-7890" required /></label>
         <label>Email address<input name="email" type="email" maxlength="200" autocomplete="email" placeholder="Ex: john.doe@example.com" required /></label>
         <label>Preferred appointment date and time<input id="requestedTime" name="requestedTime" type="datetime-local" step="900" required /></label>
-        <label class="check-row"><input id="shareSummary" type="checkbox" /> Also share my recent chat messages and replies with the doctor</label>
+        <label class="check-row"><input id="shareSummary" type="checkbox" /> Also share a recent chat transcript excerpt with the doctor (up to 1,800 characters)</label>
         <label class="check-row"><input id="shareConsent" type="checkbox" required /> I agree to send the details above to a third party. I understand this is fictional test data and the third party is public.</label>
         <button id="bookingSubmit" type="submit">Submit demo request</button>
         <div id="bookingStatus" class="booking-status" aria-live="polite"></div>
@@ -189,6 +189,28 @@
         .toISOString()
         .slice(0, 16);
       requestedTimeInput.min = localDateTime;
+    }
+
+    function buildShareableTranscript(maxLength = 1800) {
+      const recentLines = [];
+      let remaining = maxLength;
+
+      for (let index = conversation.length - 1; index >= 0 && remaining > 0; index--) {
+        const entry = conversation[index];
+        const prefix = `${entry.role}: `;
+        const available = remaining - prefix.length;
+        if (available < 2) break;
+
+        const content = entry.content;
+        const excerpt = content.length > available
+          ? `…${content.slice(-(available - 1))}`
+          : content;
+        const line = `${prefix}${excerpt}`;
+        recentLines.push(line);
+        remaining -= line.length + 1;
+      }
+
+      return recentLines.reverse().join('\n');
     }
 
     function addMessage(text, sender) {
@@ -255,7 +277,7 @@
         demoOnly: demoConsent.checked,
         shareConsent: shareConsent.checked,
         shareSummary: shareSummary.checked,
-        summary: shareSummary.checked ? conversation.map((item) => `${item.role}: ${item.content}`).join('\n') : ''
+        summary: shareSummary.checked ? buildShareableTranscript() : ''
       };
       const submitButton = document.getElementById('bookingSubmit');
       submitButton.disabled = true;
