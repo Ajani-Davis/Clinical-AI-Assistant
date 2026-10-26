@@ -1,6 +1,6 @@
 import os
 from collections import deque
-from datetime import datetime, timezone
+from datetime import date, datetime, time, timedelta, timezone
 from threading import Lock
 from uuid import uuid4
 
@@ -15,6 +15,10 @@ app = Flask(__name__)
 # Fictional test requests only. This queue is deliberately temporary and bounded.
 appointment_requests = deque(maxlen=100)
 requests_lock = Lock()
+reserved_slots = set()
+SLOT_INTERVAL_MINUTES = 30
+FIRST_SLOT_HOUR = 9
+LAST_SLOT_HOUR = 16
 
 SYSTEM_PROMPT = (
     "You are Hippocrates, a helpful assistant for hospitals, health centers, "
@@ -33,6 +37,45 @@ def patient_site():
 @app.get("/doctor")
 def doctor_site():
     return send_from_directory(DOCTOR_DIR, "Doctor.html")
+
+
+def slots_for_date(selected_date, timezone_offset):
+    if selected_date.weekday() >= 5:
+        return []
+
+    slot_time = time(FIRST_SLOT_HOUR, 0)
+    last_slot = time(LAST_SLOT_HOUR, 30)
+    slots = []
+    while slot_time <= last_slot:
+        slot_value = f"{selected_date.isoformat()}T{slot_time.strftime('%H:%M')}"
+        local_now = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(minutes=timezone_offset)
+        utc_key = slot_utc_key(selected_date, slot_time, timezone_offset)
+        if datetime.combine(selected_date, slot_time) > local_now and utc_key not in reserved_slots:
+            slots.append(slot_time.strftime("%H:%M"))
+        slot_datetime = datetime.combine(selected_date, slot_time) + timedelta(minutes=SLOT_INTERVAL_MINUTES)
+        slot_time = slot_datetime.time()
+    return slots
+
+
+def slot_utc_key(local_date, local_time, timezone_offset):
+    utc_datetime = datetime.combine(local_date, local_time) + timedelta(minutes=timezone_offset)
+    return utc_datetime.strftime("%Y-%m-%dT%H:%MZ")
+
+
+@app.get("/api/availability")
+def appointment_availability():
+    date_value = request.args.get("date", "")
+    try:
+        selected_date = date.fromisoformat(date_value)
+        timezone_offset = int(request.args.get("timezoneOffset", "0"))
+    except (TypeError, ValueError):
+        return jsonify({"error": "Choose a valid appointment date."}), 400
+    if not -840 <= timezone_offset <= 840:
+        return jsonify({"error": "Invalid timezone offset."}), 400
+
+    with requests_lock:
+        slots = slots_for_date(selected_date, timezone_offset)
+    return jsonify({"date": date_value, "slots": slots})
 
 
 @app.post("/api/chat")
@@ -118,6 +161,7 @@ def create_appointment_request():
     contact_number = data.get("contactNumber")
     email = data.get("email")
     requested_time = data.get("requestedTime")
+    timezone_offset = data.get("timezoneOffset", 0)
     summary = data.get("summary", "")
 
     if data.get("demoOnly") is not True:
@@ -128,10 +172,21 @@ def create_appointment_request():
         return jsonify({"error": "Name, contact number, email, and a preferred appointment time are required."}), 400
     if len(name) > 100 or len(contact_number) > 40 or len(email) > 200 or len(requested_time) > 120 or not isinstance(summary, str) or len(summary) > 2000:
         return jsonify({"error": "One or more fields exceed the demo limits."}), 400
+    if not isinstance(timezone_offset, int) or not -840 <= timezone_offset <= 840:
+        return jsonify({"error": "Invalid appointment timezone."}), 400
     if summary and data.get("shareSummary") is not True:
         return jsonify({"error": "Choose whether to include the optional chat summary."}), 400
     if summary and len(summary.split()) >= 1000:
         return jsonify({"error": "The shared summary must be less than 1,000 words."}), 400
+
+    try:
+        appointment_datetime = datetime.strptime(requested_time, "%Y-%m-%dT%H:%M")
+    except ValueError:
+        return jsonify({"error": "Choose an available appointment date and time."}), 400
+    if appointment_datetime.minute not in (0, 30) or appointment_datetime.second != 0:
+        return jsonify({"error": "Choose one of the listed half-hour appointment slots."}), 400
+    appointment_key = appointment_datetime.strftime("%Y-%m-%dT%H:%M")
+    reservation_key = slot_utc_key(appointment_datetime.date(), appointment_datetime.time(), timezone_offset)
 
     record = {
         "id": str(uuid4()),
@@ -139,11 +194,16 @@ def create_appointment_request():
         "name": name.strip(),
         "contactNumber": contact_number.strip(),
         "email": email.strip(),
-        "requestedTime": requested_time.strip(),
+        "requestedTime": appointment_key,
+        "timezoneOffset": timezone_offset,
         "summary": summary.strip(),
         "status": "New",
     }
     with requests_lock:
+        available_slots = slots_for_date(appointment_datetime.date(), timezone_offset)
+        if appointment_datetime.strftime("%H:%M") not in available_slots:
+            return jsonify({"error": "That appointment slot is no longer available. Choose another time."}), 409
+        reserved_slots.add(reservation_key)
         appointment_requests.appendleft(record)
     return jsonify({"message": "Fictional demo request submitted.", "requestId": record["id"]}), 201
 

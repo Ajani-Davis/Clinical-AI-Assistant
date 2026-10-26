@@ -12,6 +12,8 @@ Regular chat messages are sent to Groq for a response but are not saved to the d
 
 This is a fictional-data demo, not a clinical system. The doctor portal and records API have no login and are publicly accessible. Records use temporary in-memory storage, are capped at 100, and are cleared when the server restarts or redeploys. Never use real patient names, contact details, health details, symptoms, diagnoses, or appointment information.
 
+The demo scheduler offers weekday appointments every 30 minutes from 9:00 AM through 4:30 PM in the visitor's local timezone. A slot is reserved when a booking is accepted and duplicate bookings are rejected while this server process is running. Since reservations are memory-only, they reset on restart/redeploy and do not coordinate across multiple server instances; use a persistent shared database and transactional unique-slot constraint before using this for real scheduling.
+
 ## Run locally
 
 From this folder:

@@ -89,6 +89,20 @@
       font: inherit;
       line-height: 1.45;
     }
+    .slot-picker { display: grid; gap: 8px; }
+    .slot-picker[hidden] { display: none; }
+    .slot-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 8px; }
+    .slot-button {
+      min-height: 40px;
+      padding: 8px;
+      border: 1px solid #a9caca;
+      border-radius: 6px;
+      background: white;
+      color: #145b5b;
+    }
+    .slot-button:hover { background: #e5f4ef; }
+    .slot-button[aria-pressed="true"] { background: var(--primary); color: white; border-color: var(--primary); }
+    .slot-list-empty, .slot-picker-status { color: #475569; font-size: 12px; }
     .booking-form input[type="checkbox"] { flex: none; }
     .check-row { display: flex !important; grid-template-columns: none; align-items: flex-start; gap: 8px !important; line-height: 1.4; }
     .booking-status { min-height: 18px; color: #475569; font-size: 12px; }
@@ -204,7 +218,13 @@
         <label>Name<input name="name" maxlength="100" placeholder="Ex: John Doe" required /></label>
         <label>Contact number<input name="contactNumber" type="tel" maxlength="40" autocomplete="tel" placeholder="Ex: 123-456-7890" required /></label>
         <label>Email address<input name="email" type="email" maxlength="200" autocomplete="email" placeholder="Ex: john.doe@example.com" required /></label>
-        <label>Preferred appointment date and time<input id="requestedTime" name="requestedTime" type="datetime-local" step="900" required /></label>
+        <label>Appointment date<input id="appointmentDate" name="appointmentDate" type="date" required /></label>
+        <input id="requestedTime" name="requestedTime" type="hidden" required />
+        <section id="slotPicker" class="slot-picker" aria-label="Available appointment times" hidden>
+          <strong>Available times</strong>
+          <div id="slotStatus" class="slot-picker-status" aria-live="polite">Choose a date to load available times.</div>
+          <div id="slotList" class="slot-list"></div>
+        </section>
         <label class="check-row"><input id="shareSummary" type="checkbox" /> Generate a summary of this chat to share with the doctor (can be edited before submission)</label>
         <div id="summaryControls" hidden>
           <button id="generateSummary" type="button">Generate summary</button>
@@ -234,15 +254,68 @@
     const summaryPreview = document.getElementById('summaryPreview');
     const summaryStatus = document.getElementById('summaryStatus');
     const requestedTimeInput = document.getElementById('requestedTime');
+    const appointmentDateInput = document.getElementById('appointmentDate');
+    const slotPicker = document.getElementById('slotPicker');
+    const slotStatus = document.getElementById('slotStatus');
+    const slotList = document.getElementById('slotList');
     const conversation = [];
+    let selectedSlotButton = null;
 
     function setEarliestAppointmentTime() {
       const now = new Date();
-      now.setMinutes(Math.ceil(now.getMinutes() / 15) * 15, 0, 0);
-      const localDateTime = new Date(now.getTime() - now.getTimezoneOffset() * 60000)
+      const localToday = new Date(now.getTime() - now.getTimezoneOffset() * 60000)
         .toISOString()
-        .slice(0, 16);
-      requestedTimeInput.min = localDateTime;
+        .slice(0, 10);
+      appointmentDateInput.min = localToday;
+    }
+
+    async function loadAvailableSlots() {
+      requestedTimeInput.value = '';
+      if (selectedSlotButton) selectedSlotButton.setAttribute('aria-pressed', 'false');
+      selectedSlotButton = null;
+      slotList.replaceChildren();
+      if (!appointmentDateInput.value) {
+        slotPicker.hidden = true;
+        return;
+      }
+
+      slotPicker.hidden = false;
+      slotStatus.textContent = 'Checking availability...';
+      try {
+        const parameters = new URLSearchParams({
+          date: appointmentDateInput.value,
+          timezoneOffset: String(new Date().getTimezoneOffset())
+        });
+        const response = await fetch(`/api/availability?${parameters}`, { cache: 'no-store' });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Could not load available times.');
+
+        if (!data.slots.length) {
+          slotStatus.textContent = 'No available times on this date. Choose another date.';
+          return;
+        }
+
+        slotStatus.textContent = 'Times are shown in your local timezone.';
+        for (const slot of data.slots) {
+          const button = document.createElement('button');
+          button.type = 'button';
+          button.className = 'slot-button';
+          button.textContent = new Date(`${appointmentDateInput.value}T${slot}`).toLocaleTimeString([], {
+            hour: 'numeric',
+            minute: '2-digit'
+          });
+          button.setAttribute('aria-pressed', 'false');
+          button.addEventListener('click', () => {
+            if (selectedSlotButton) selectedSlotButton.setAttribute('aria-pressed', 'false');
+            selectedSlotButton = button;
+            selectedSlotButton.setAttribute('aria-pressed', 'true');
+            requestedTimeInput.value = `${appointmentDateInput.value}T${slot}`;
+          });
+          slotList.appendChild(button);
+        }
+      } catch (error) {
+        slotStatus.textContent = error.message;
+      }
     }
 
     function buildShareableTranscript(maxLength = 12000) {
@@ -350,8 +423,12 @@
     bookingToggle.addEventListener('click', () => {
       bookingForm.hidden = !bookingForm.hidden;
       bookingToggle.setAttribute('aria-expanded', String(!bookingForm.hidden));
-      if (!bookingForm.hidden) setEarliestAppointmentTime();
+      if (!bookingForm.hidden) {
+        setEarliestAppointmentTime();
+        loadAvailableSlots();
+      }
     });
+    appointmentDateInput.addEventListener('change', loadAvailableSlots);
     bookingForm.addEventListener('submit', async (event) => {
       event.preventDefault();
       if (!demoConsent.checked) {
@@ -373,6 +450,7 @@
         contactNumber: formData.get('contactNumber'),
         email: formData.get('email'),
         requestedTime: formData.get('requestedTime'),
+        timezoneOffset: new Date().getTimezoneOffset(),
         demoOnly: demoConsent.checked,
         shareConsent: shareConsent.checked,
         shareSummary: shareSummary.checked,

@@ -223,8 +223,17 @@
     const reviewCount = document.getElementById('reviewCount');
     const queueLabel = document.getElementById('queueLabel');
 
-    function formatAppointmentTime(value) {
-      const appointmentDate = new Date(value);
+    function formatAppointmentTime(value, timezoneOffset = 0) {
+      const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(value);
+      const appointmentDate = match
+        ? new Date(Date.UTC(
+            Number(match[1]),
+            Number(match[2]) - 1,
+            Number(match[3]),
+            Number(match[4]),
+            Number(match[5])
+          ) + timezoneOffset * 60000)
+        : new Date(value);
       return Number.isNaN(appointmentDate.getTime())
         ? value
         : appointmentDate.toLocaleString(undefined, {
@@ -251,14 +260,14 @@
         row.setAttribute('aria-selected', 'false');
         row.innerHTML = `<td class="patient"></td><td class="time"></td><td class="phone"></td><td class="email"></td><td><span class="status new">New</span></td>`;
         row.querySelector('.patient').textContent = record.name;
-        row.querySelector('.time').textContent = formatAppointmentTime(record.requestedTime);
+        row.querySelector('.time').textContent = formatAppointmentTime(record.requestedTime, record.timezoneOffset);
         row.querySelector('.phone').textContent = record.contactNumber;
         row.querySelector('.email').textContent = record.email;
 
         const selectRow = () => {
           rows.querySelectorAll('tr').forEach((item) => item.setAttribute('aria-selected', 'false'));
           row.setAttribute('aria-selected', 'true');
-          detailPatient.textContent = `${record.name} · ${record.contactNumber} · ${record.email} · Preferred time: ${formatAppointmentTime(record.requestedTime)} · Submitted ${new Date(record.createdAt).toLocaleString()} · Demo request ${record.id}`;
+          detailPatient.textContent = `${record.name} · ${record.contactNumber} · ${record.email} · Preferred time: ${formatAppointmentTime(record.requestedTime, record.timezoneOffset)} · Submitted ${new Date(record.createdAt).toLocaleString()} · Demo request ${record.id}`;
           detailResponse.textContent = record.summary || 'The patient did not opt to share chat context.';
         };
         row.addEventListener('click', selectRow);
