@@ -14,24 +14,25 @@ This is a fictional-data demo, not a clinical system. The doctor portal and reco
 
 The demo scheduler offers weekday appointments every 30 minutes from 9:00 AM through 4:30 PM in the visitor's local timezone. A slot is reserved when a booking is accepted and duplicate bookings are rejected while this server process is running. Since reservations are memory-only, they reset on restart/redeploy and do not coordinate across multiple server instances; use a persistent shared database and transactional unique-slot constraint before using this for real scheduling.
 
+After reserving a slot, the server attempts to send a confirmation email. Configure `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, and `SMTP_FROM` in the local environment or hosting provider's secret settings. Port 587 uses STARTTLS by default; set `SMTP_USE_SSL=true` for implicit TLS, commonly on port 465. If SMTP is not configured or delivery fails, the booking remains reserved and the response reports that email was not sent.
+
 ## Run locally
 
 From this folder:
 
 ```sh
 python3 -m pip install -r requirements.txt
-export GROQ_API_KEY="your-current-groq-key"
+cp .env.example .env
+# Edit .env locally and set your private Groq and SMTP credentials.
 python3 server.py
 ```
+
+For Gmail, SMTP typically uses `smtp.gmail.com` on port `587` with STARTTLS. Use a Google App Password (not your normal account password); the account must have 2-Step Verification enabled. Other email providers have their own SMTP host, port, TLS mode, and credential requirements. The example file is only a template: replace every placeholder in your ignored local `.env` before expecting email to send.
 
 Open the patient site at http://127.0.0.1:5004/ and the doctor portal at http://127.0.0.1:5004/doctor. Keep the terminal running. Use only fictional data.
 
 ## Deploy as one service
 
-Upload the contents of this project folder to a GitHub repository. In Render, create a Python web service with:
-
-- Build command: `pip install -r requirements.txt`
-- Start command: `gunicorn server:app`
-- Environment variable: `GROQ_API_KEY` set in the Render dashboard, never in GitHub
+Upload the contents of this project folder to a GitHub repository. In Render, create a Blueprint from the repository; `render.yaml` defines the build command, start command, and required private environment variables. Enter the secret values in Render's Environment settings. Never commit `.env` or put credentials in GitHub. For Gmail, use an App Password stored as `SMTP_PASSWORD`.
 
 The patient site and doctor portal have separate page URLs on the same app, but share one origin and one backend. The doctor URL is `/doctor` and is not protected in this demo. Do not deploy with real patient data. For real use, first select an approved hosting and data platform, then design authentication, authorization, durable storage, audit logs, consent and retention controls, and privacy/security review for the applicable jurisdiction.

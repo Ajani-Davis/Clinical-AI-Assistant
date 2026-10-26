@@ -467,8 +467,12 @@
         });
         const data = await response.json();
         if (!response.ok) throw new Error(data.error || `Request failed (${response.status})`);
-        bookingStatus.textContent = 'Demo request submitted. It should now appear in the doctor portal.';
+        bookingStatus.textContent = data.message || 'Appointment request confirmed.';
         bookingForm.reset();
+        requestedTimeInput.value = '';
+        slotList.replaceChildren();
+        slotStatus.textContent = 'Choose a date to load available times.';
+        await loadAvailableSlots();
       } catch (error) {
         bookingStatus.textContent = error.message;
       } finally {

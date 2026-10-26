@@ -1,13 +1,18 @@
 import os
+import smtplib
 from collections import deque
 from datetime import date, datetime, time, timedelta, timezone
+from email.message import EmailMessage
 from threading import Lock
 from uuid import uuid4
 
 from flask import Flask, jsonify, request, send_from_directory
+from dotenv import load_dotenv
 from groq import Groq
 
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
+load_dotenv(os.path.join(ROOT_DIR, ".env"))
+
 PATIENT_DIR = os.path.join(ROOT_DIR, "patient-website")
 DOCTOR_DIR = os.path.join(ROOT_DIR, "doctor-portal")
 app = Flask(__name__)
@@ -60,6 +65,46 @@ def slots_for_date(selected_date, timezone_offset):
 def slot_utc_key(local_date, local_time, timezone_offset):
     utc_datetime = datetime.combine(local_date, local_time) + timedelta(minutes=timezone_offset)
     return utc_datetime.strftime("%Y-%m-%dT%H:%MZ")
+
+
+def send_appointment_confirmation(record):
+    host = os.environ.get("SMTP_HOST")
+    username = os.environ.get("SMTP_USERNAME")
+    password = os.environ.get("SMTP_PASSWORD")
+    sender = os.environ.get("SMTP_FROM")
+    if not all((host, username, password, sender)):
+        app.logger.warning("SMTP is not configured; appointment confirmation email was not sent")
+        return False
+
+    message = EmailMessage()
+    message["Subject"] = "Your Hippocrates appointment confirmation"
+    message["From"] = sender
+    message["To"] = record["email"]
+    appointment = datetime.strptime(record["requestedTime"], "%Y-%m-%dT%H:%M")
+    message.set_content(
+        f"Hello {record['name']},\n\n"
+        "Your appointment has been confirmed for "
+        f"{appointment.strftime('%A, %B %-d, %Y at %-I:%M %p')} "
+        "in the local timezone used when you selected the time.\n\n"
+        "This is an automated confirmation. Please contact the clinic if you need to change your appointment.\n"
+    )
+
+    port = int(os.environ.get("SMTP_PORT", "587"))
+    use_ssl = os.environ.get("SMTP_USE_SSL", "false").lower() == "true"
+    try:
+        if use_ssl:
+            with smtplib.SMTP_SSL(host, port, timeout=15) as smtp:
+                smtp.login(username, password)
+                smtp.send_message(message)
+        else:
+            with smtplib.SMTP(host, port, timeout=15) as smtp:
+                smtp.starttls()
+                smtp.login(username, password)
+                smtp.send_message(message)
+        return True
+    except Exception:
+        app.logger.exception("Appointment was booked, but confirmation email delivery failed")
+        return False
 
 
 @app.get("/api/availability")
@@ -205,7 +250,12 @@ def create_appointment_request():
             return jsonify({"error": "That appointment slot is no longer available. Choose another time."}), 409
         reserved_slots.add(reservation_key)
         appointment_requests.appendleft(record)
-    return jsonify({"message": "Fictional demo request submitted.", "requestId": record["id"]}), 201
+    email_sent = send_appointment_confirmation(record)
+    if email_sent:
+        message = "Appointment confirmed. A confirmation email was sent."
+    else:
+        message = "Appointment confirmed, but the confirmation email could not be sent. Contact the clinic to verify the booking."
+    return jsonify({"message": message, "requestId": record["id"], "confirmationEmailSent": email_sent}), 201
 
 
 @app.get("/api/appointments")
