@@ -1,9 +1,10 @@
 import os
-import smtplib
+import json
 from collections import deque
 from datetime import date, datetime, time, timedelta, timezone
-from email.message import EmailMessage
 from threading import Lock
+from urllib.error import HTTPError, URLError
+from urllib.request import Request, urlopen
 from uuid import uuid4
 
 from flask import Flask, jsonify, request, send_from_directory
@@ -68,42 +69,46 @@ def slot_utc_key(local_date, local_time, timezone_offset):
 
 
 def send_appointment_confirmation(record):
-    host = os.environ.get("SMTP_HOST")
-    username = os.environ.get("SMTP_USERNAME")
-    password = os.environ.get("SMTP_PASSWORD")
-    sender = os.environ.get("SMTP_FROM")
-    if not all((host, username, password, sender)):
-        app.logger.warning("SMTP is not configured; appointment confirmation email was not sent")
+    api_key = os.environ.get("RESEND_API_KEY")
+    sender = os.environ.get("RESEND_FROM")
+    if not all((api_key, sender)):
+        app.logger.warning("Resend is not configured; appointment confirmation email was not sent")
         return False
 
-    message = EmailMessage()
-    message["Subject"] = "Your Hippocrates appointment confirmation"
-    message["From"] = sender
-    message["To"] = record["email"]
     appointment = datetime.strptime(record["requestedTime"], "%Y-%m-%dT%H:%M")
-    message.set_content(
+    body = (
         f"Hello {record['name']},\n\n"
         "Your appointment has been confirmed for "
         f"{appointment.strftime('%A, %B %-d, %Y at %-I:%M %p')} "
         "in the local timezone used when you selected the time.\n\n"
         "This is an automated confirmation. Please contact the clinic if you need to change your appointment.\n"
     )
-
-    port = int(os.environ.get("SMTP_PORT", "587"))
-    use_ssl = os.environ.get("SMTP_USE_SSL", "false").lower() == "true"
+    payload = json.dumps({
+        "from": sender,
+        "to": [record["email"]],
+        "subject": "Your Hippocrates appointment confirmation",
+        "text": body,
+    }).encode("utf-8")
+    api_request = Request(
+        "https://api.resend.com/emails",
+        data=payload,
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+        },
+        method="POST",
+    )
     try:
-        if use_ssl:
-            with smtplib.SMTP_SSL(host, port, timeout=15) as smtp:
-                smtp.login(username, password)
-                smtp.send_message(message)
-        else:
-            with smtplib.SMTP(host, port, timeout=15) as smtp:
-                smtp.starttls()
-                smtp.login(username, password)
-                smtp.send_message(message)
+        with urlopen(api_request, timeout=15) as response:
+            if not 200 <= response.status < 300:
+                app.logger.error("Resend returned HTTP %s for appointment confirmation", response.status)
+                return False
         return True
-    except Exception:
-        app.logger.exception("Appointment was booked, but confirmation email delivery failed")
+    except HTTPError as error:
+        app.logger.error("Resend returned HTTP %s for appointment confirmation", error.code)
+        return False
+    except (URLError, TimeoutError, OSError):
+        app.logger.exception("Appointment booked, but Resend email delivery failed")
         return False
 
 
