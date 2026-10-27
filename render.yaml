@@ -8,15 +8,9 @@ services:
     envVars:
       - key: GROQ_API_KEY
         sync: false
-      - key: SMTP_HOST
+      - key: BREVO_API_KEY
         sync: false
-      - key: SMTP_PORT
-        value: "587"
-      - key: SMTP_USERNAME
+      - key: BREVO_FROM_EMAIL
         sync: false
-      - key: SMTP_PASSWORD
-        sync: false
-      - key: SMTP_FROM
-        sync: false
-      - key: SMTP_USE_SSL
-        value: "false"
+      - key: BREVO_FROM_NAME
+        value: Hippocrates Appointments
