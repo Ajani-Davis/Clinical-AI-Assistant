@@ -157,7 +157,7 @@ def chat():
             {"type": "text", "text": message.strip() or "Please describe this image."},
             {"type": "image_url", "image_url": {"url": image}},
         ]
-        model = "meta-llama/llama-4-scout-17b-16e-instruct"
+        model = "llama-4-scout-17b-16e-instruct"
     else:
         user_content = message.strip()
         model = "openai/gpt-oss-120b"
@@ -175,6 +175,8 @@ def chat():
         return jsonify({"reply": reply})
     except Exception as exc:
         app.logger.exception("Groq chat request failed (%s: %s)", type(exc).__name__, exc)
+        if image and "model" in str(exc).lower():
+            return jsonify({"error": "Image analysis isn't available right now on this account. You can still send a text description of the image instead."}), 502
         return jsonify({"error": "The chatbot could not complete that request."}), 502
 
 
