@@ -135,16 +135,10 @@ def appointment_availability():
 def chat():
     data = request.get_json(silent=True) or {}
     message = data.get("message")
-    image = data.get("image")
-    if not isinstance(message, str) or not (message.strip() or image):
-        return jsonify({"error": "Enter a message or attach an image."}), 400
+    if not isinstance(message, str) or not message.strip():
+        return jsonify({"error": "Enter a message."}), 400
     if len(message) > 2000:
         return jsonify({"error": "Keep demo messages under 2,000 characters."}), 400
-    if image is not None:
-        if not isinstance(image, str) or not image.startswith("data:image/") or ";base64," not in image:
-            return jsonify({"error": "Attach a valid image file."}), 400
-        if len(image) > 1_800_000:
-            return jsonify({"error": "Please upload a smaller image (under ~1 MB)."}), 400
     if data.get("demoOnly") is not True:
         return jsonify({"error": "Confirm this is fictional test data."}), 400
 
@@ -152,32 +146,19 @@ def chat():
     if not api_key:
         return jsonify({"error": "Chat service is not configured. Set GROQ_API_KEY on the server."}), 503
 
-    if image:
-        user_content = [
-            {"type": "text", "text": message.strip() or "Please describe this image."},
-            {"type": "image_url", "image_url": {"url": image, "detail": "low"}},
-        ]
-        model = "meta-llama/llama-4-scout-17b-16e-instruct"
-    else:
-        user_content = message.strip()
-        model = "openai/gpt-oss-120b"
-
     try:
         client = Groq(api_key=api_key)
         result = client.chat.completions.create(
-            model=model,
+            model="openai/gpt-oss-120b",
             messages=[
                 {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": user_content},
+                {"role": "user", "content": message.strip()},
             ],
-            max_tokens=600,
         )
         reply = result.choices[0].message.content or "I don't have a response right now."
         return jsonify({"reply": reply})
     except Exception as exc:
         app.logger.exception("Groq chat request failed (%s: %s)", type(exc).__name__, exc)
-        if image and "model" in str(exc).lower():
-            return jsonify({"error": "Image analysis isn't available right now on this account. You can still send a text description of the image instead."}), 502
         return jsonify({"error": "The chatbot could not complete that request."}), 502
 
 

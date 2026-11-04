@@ -148,31 +148,6 @@
       background: white;
     }
 
-    .attach-btn { padding: 12px 14px; }
-    #imagePreviewArea {
-      display: none;
-      align-items: center;
-      gap: 10px;
-      padding: 8px 16px;
-      background: white;
-      border-bottom: 1px solid var(--border);
-    }
-    #imagePreviewArea.visible { display: flex; }
-    #imagePreviewArea img {
-      width: 48px;
-      height: 48px;
-      object-fit: cover;
-      border-radius: 8px;
-      border: 1px solid var(--border);
-    }
-    .remove-image { padding: 6px 10px; font-size: 12px; }
-    .message img.message-image {
-      display: block;
-      max-width: 220px;
-      border-radius: 10px;
-      margin-bottom: 8px;
-    }
-
     input {
       flex: 1;
       min-width: 0;
@@ -228,16 +203,10 @@
       <img class="chat-avatar" src="/static/hippocrates-avatar.svg" alt="Illustrated profile of Hippocrates, the doctor assistant" />
       <span>Hippocrates👨🏽‍⚕️🩺</span>
     </header>
-    <aside class="demo-notice">Fictional-data demo only. Do not enter real personal or health information. Chat messages are not saved unless you explicitly choose to share a summary when requesting an appointment. Images are analyzed once and never saved; do not upload real medical images.</aside>
+    <aside class="demo-notice">Fictional-data demo only. Do not enter real personal or health information. Chat messages are not saved unless you explicitly choose to share a summary when requesting an appointment.</aside>
     <div id="chatMessages" class="chat-messages" aria-live="polite"></div>
-    <div id="imagePreviewArea">
-      <img id="imagePreview" alt="Selected image preview" />
-      <button id="removeImage" class="remove-image" type="button">Remove image</button>
-    </div>
-    <input id="imageInput" type="file" accept="image/*" hidden />
     <form id="chatForm" class="chat-input">
-      <button id="attachBtn" class="attach-btn" type="button" title="Attach an image">📎</button>
-      <input id="messageInput" type="text" placeholder="Ask a general health or appointment question..." autocomplete="off" />
+      <input id="messageInput" type="text" placeholder="Ask a general health or appointment question..." autocomplete="off" required />
       <button id="sendBtn" type="submit" disabled>Send</button>
     </form>
     <label style="padding: 0 16px 12px; background: white; font-size: 12px; color: #475569;">
@@ -289,14 +258,8 @@
     const slotPicker = document.getElementById('slotPicker');
     const slotStatus = document.getElementById('slotStatus');
     const slotList = document.getElementById('slotList');
-    const imageInput = document.getElementById('imageInput');
-    const attachBtn = document.getElementById('attachBtn');
-    const imagePreviewArea = document.getElementById('imagePreviewArea');
-    const imagePreview = document.getElementById('imagePreview');
-    const removeImageButton = document.getElementById('removeImage');
     const conversation = [];
     let selectedSlotButton = null;
-    let selectedImage = null;
 
     function setEarliestAppointmentTime() {
       const now = new Date();
@@ -377,46 +340,23 @@
       return recentLines.reverse().join('\n');
     }
 
-    function addMessage(text, sender, imageDataUrl = null) {
+    function addMessage(text, sender) {
       const message = document.createElement('div');
       message.className = `message ${sender}`;
-      if (imageDataUrl) {
-        const img = document.createElement('img');
-        img.className = 'message-image';
-        img.src = imageDataUrl;
-        img.alt = 'Uploaded image';
-        message.appendChild(img);
-      }
-      if (text) {
-        message.appendChild(document.createTextNode(text));
-      }
+      message.textContent = text;
       chatMessages.appendChild(message);
       chatMessages.scrollTop = chatMessages.scrollHeight;
       return message;
     }
 
-    function setSelectedImage(dataUrl) {
-      selectedImage = dataUrl;
-      if (dataUrl) {
-        imagePreview.src = dataUrl;
-        imagePreviewArea.classList.add('visible');
-      } else {
-        imagePreview.removeAttribute('src');
-        imagePreviewArea.classList.remove('visible');
-        imageInput.value = '';
-      }
-    }
-
     async function sendMessage(event) {
       event.preventDefault();
       const text = messageInput.value.trim();
-      if ((!text && !selectedImage) || !demoConsent.checked || sendBtn.dataset.sending === 'true') return;
+      if (!text || !demoConsent.checked || sendBtn.dataset.sending === 'true') return;
 
-      const imageToSend = selectedImage;
-      addMessage(text, 'user', imageToSend);
-      conversation.push({ role: 'user', content: text || 'Shared an image' });
+      addMessage(text, 'user');
+      conversation.push({ role: 'user', content: text });
       messageInput.value = '';
-      setSelectedImage(null);
       sendBtn.dataset.sending = 'true';
       sendBtn.disabled = true;
       const thinking = addMessage('Thinking...', 'bot');
@@ -425,7 +365,7 @@
         const response = await fetch('/api/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message: text, image: imageToSend, demoOnly: demoConsent.checked })
+          body: JSON.stringify({ message: text, demoOnly: demoConsent.checked })
         });
         const data = await response.json();
         if (!response.ok) throw new Error(data.error || `Request failed (${response.status})`);
@@ -444,38 +384,6 @@
     demoConsent.addEventListener('change', () => {
       sendBtn.disabled = !demoConsent.checked || sendBtn.dataset.sending === 'true';
     });
-    attachBtn.addEventListener('click', () => imageInput.click());
-    imageInput.addEventListener('change', () => {
-      const file = imageInput.files && imageInput.files[0];
-      if (!file) return;
-      if (!file.type.startsWith('image/')) {
-        alert('Please choose an image file.');
-        imageInput.value = '';
-        return;
-      }
-      const reader = new FileReader();
-      reader.onload = () => {
-        const original = reader.result;
-        if (file.size <= 900 * 1024) {
-          setSelectedImage(original);
-          return;
-        }
-        const img = new Image();
-        img.onload = () => {
-          const maxDimension = 1024;
-          const scale = Math.min(1, maxDimension / Math.max(img.width, img.height));
-          const canvas = document.createElement('canvas');
-          canvas.width = Math.max(1, Math.round(img.width * scale));
-          canvas.height = Math.max(1, Math.round(img.height * scale));
-          canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
-          setSelectedImage(canvas.toDataURL('image/jpeg', 0.75));
-        };
-        img.onerror = () => setSelectedImage(original);
-        img.src = original;
-      };
-      reader.readAsDataURL(file);
-    });
-    removeImageButton.addEventListener('click', () => setSelectedImage(null));
     shareSummary.addEventListener('change', () => {
       summaryControls.hidden = !shareSummary.checked;
       if (!shareSummary.checked) {
