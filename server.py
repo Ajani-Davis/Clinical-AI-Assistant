@@ -173,8 +173,8 @@ def chat():
         )
         reply = result.choices[0].message.content or "I don't have a response right now."
         return jsonify({"reply": reply})
-    except Exception:
-        app.logger.exception("Groq chat request failed")
+    except Exception as exc:
+        app.logger.exception("Groq chat request failed (%s: %s)", type(exc).__name__, exc)
         return jsonify({"error": "The chatbot could not complete that request."}), 502
 
 
@@ -218,8 +218,8 @@ def summarize_chat():
         if len(summary.split()) >= 500:
             return jsonify({"error": "The generated summary was too long. Please try again."}), 502
         return jsonify({"summary": summary, "wordCount": len(summary.split())})
-    except Exception:
-        app.logger.exception("Groq summary request failed")
+    except Exception as exc:
+        app.logger.exception("Groq summary request failed (%s: %s)", type(exc).__name__, exc)
         return jsonify({"error": "The chat could not be summarized. Please try again."}), 502
 
 
