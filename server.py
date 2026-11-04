@@ -135,10 +135,16 @@ def appointment_availability():
 def chat():
     data = request.get_json(silent=True) or {}
     message = data.get("message")
-    if not isinstance(message, str) or not message.strip():
-        return jsonify({"error": "Enter a message."}), 400
+    image = data.get("image")
+    if not isinstance(message, str) or not (message.strip() or image):
+        return jsonify({"error": "Enter a message or attach an image."}), 400
     if len(message) > 2000:
         return jsonify({"error": "Keep demo messages under 2,000 characters."}), 400
+    if image is not None:
+        if not isinstance(image, str) or not image.startswith("data:image/") or ";base64," not in image:
+            return jsonify({"error": "Attach a valid image file."}), 400
+        if len(image) > 4_500_000:
+            return jsonify({"error": "Keep images under 3 MB."}), 400
     if data.get("demoOnly") is not True:
         return jsonify({"error": "Confirm this is fictional test data."}), 400
 
@@ -146,13 +152,23 @@ def chat():
     if not api_key:
         return jsonify({"error": "Chat service is not configured. Set GROQ_API_KEY on the server."}), 503
 
+    if image:
+        user_content = [
+            {"type": "text", "text": message.strip() or "Please describe this image."},
+            {"type": "image_url", "image_url": {"url": image}},
+        ]
+        model = "meta-llama/llama-4-scout-17b-16e-instruct"
+    else:
+        user_content = message.strip()
+        model = "openai/gpt-oss-120b"
+
     try:
         client = Groq(api_key=api_key)
         result = client.chat.completions.create(
-            model="openai/gpt-oss-120b",
+            model=model,
             messages=[
                 {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": message.strip()},
+                {"role": "user", "content": user_content},
             ],
         )
         reply = result.choices[0].message.content or "I don't have a response right now."
