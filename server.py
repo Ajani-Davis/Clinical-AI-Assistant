@@ -143,8 +143,8 @@ def chat():
     if image is not None:
         if not isinstance(image, str) or not image.startswith("data:image/") or ";base64," not in image:
             return jsonify({"error": "Attach a valid image file."}), 400
-        if len(image) > 4_500_000:
-            return jsonify({"error": "Keep images under 3 MB."}), 400
+        if len(image) > 1_800_000:
+            return jsonify({"error": "Please upload a smaller image (under ~1 MB)."}), 400
     if data.get("demoOnly") is not True:
         return jsonify({"error": "Confirm this is fictional test data."}), 400
 
@@ -157,7 +157,7 @@ def chat():
             {"type": "text", "text": message.strip() or "Please describe this image."},
             {"type": "image_url", "image_url": {"url": image}},
         ]
-        model = "llama-4-scout-17b-16e-instruct"
+        model = "meta-llama/llama-4-scout-17b-16e-instruct"
     else:
         user_content = message.strip()
         model = "openai/gpt-oss-120b"
