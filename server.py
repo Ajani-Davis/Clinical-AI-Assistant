@@ -155,7 +155,7 @@ def chat():
     if image:
         user_content = [
             {"type": "text", "text": message.strip() or "Please describe this image."},
-            {"type": "image_url", "image_url": {"url": image}},
+            {"type": "image_url", "image_url": {"url": image, "detail": "low"}},
         ]
         model = "meta-llama/llama-4-scout-17b-16e-instruct"
     else:
@@ -170,6 +170,7 @@ def chat():
                 {"role": "system", "content": SYSTEM_PROMPT},
                 {"role": "user", "content": user_content},
             ],
+            max_tokens=600,
         )
         reply = result.choices[0].message.content or "I don't have a response right now."
         return jsonify({"reply": reply})
